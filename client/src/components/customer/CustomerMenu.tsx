@@ -49,7 +49,7 @@ interface OrderItem {
   id: number;
   menu_item_id: number;
   quantity: number;
-  price: number;
+  price_at_time: number;
   name: string;
 }
 
@@ -198,22 +198,35 @@ const CustomerMenu: React.FC = () => {
       setError('Your cart is empty');
       return;
     }
+
     try {
       const orderData = {
-        table_id: tableId,
+        table_id: parseInt(tableId || '0'),
         items: cart.map(item => ({
           id: item.id,
           quantity: item.quantity
         })),
-        total_amount: cart.reduce((total, item) => total + (item.price * item.quantity), 0)
+        total_amount: getTotalPrice()
       };
-      await axios.post('http://localhost:3000/api/orders', orderData);
-      setSuccess('Order placed successfully! A waiter will be with you shortly.');
+
+      if (!orderData.table_id) {
+        setError('Invalid table number');
+        return;
+      }
+
+      const response = await axios.post('http://localhost:3000/api/orders', orderData);
+      setCurrentOrder(response.data);
       setCart([]);
+      setCartOpen(false);
+      setOrderSuccess(true);
       fetchOrders();
-    } catch (error) {
-      console.error('Error placing order:', error);
-      setError('Failed to place order. Please try again.');
+    } catch (err) {
+      console.error('Error placing order:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        setOrderError(err.response.data.error);
+      } else {
+        setOrderError('Failed to place order. Please try again.');
+      }
     }
   };
 
@@ -240,7 +253,7 @@ const CustomerMenu: React.FC = () => {
       
       setSuccess('Payment successful!');
       setPaymentDialogOpen(false);
-      fetchOrders(); // Refresh orders after payment
+      setOrders(orders.filter(order => order.status !== 'completed'));
     } catch (err) {
       console.error('Payment error:', err);
       setError('Failed to process payment. Please try again.');
@@ -316,7 +329,7 @@ const CustomerMenu: React.FC = () => {
                   <ListItem key={item.id}>
                     <ListItemText
                       primary={item.name}
-                      secondary={`${item.quantity}x - $${(item.price * item.quantity).toFixed(2)}`}
+                      secondary={`${item.quantity}x - $${(item.price_at_time * item.quantity).toFixed(2)}`}
                     />
                   </ListItem>
                 ))}

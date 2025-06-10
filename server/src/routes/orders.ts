@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../db';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -9,6 +9,16 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     const { table_id, items, total_amount } = req.body;
+    
+    // First check if the table exists
+    const tableCheck = await client.query(
+      'SELECT * FROM tables WHERE id = $1',
+      [table_id]
+    );
+
+    if (tableCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
     
     await client.query('BEGIN');
     
@@ -43,7 +53,7 @@ router.post('/', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -72,12 +82,13 @@ router.get('/', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
+      WHERE o.status != 'completed'
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `);
@@ -98,7 +109,7 @@ router.get('/:id', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -147,13 +158,13 @@ router.get('/table/:tableId', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
-      WHERE o.table_id = $1
+      WHERE o.table_id = $1 AND o.status != 'completed'
       GROUP BY o.id
       ORDER BY o.created_at DESC`,
       [tableId]
@@ -184,10 +195,10 @@ router.patch('/:id/payment', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Update the order payment status
+    // Update both payment status and order status
     await client.query(
-      'UPDATE orders SET payment_status = $1, payment_method = $2 WHERE id = $3',
-      ['paid', payment_method, id]
+      'UPDATE orders SET payment_status = $1, payment_method = $2, status = $3 WHERE id = $4',
+      ['paid', payment_method, 'completed', id]
     );
 
     await client.query('COMMIT');
