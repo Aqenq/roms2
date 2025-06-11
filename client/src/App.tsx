@@ -7,11 +7,13 @@ import MenuManagement from './components/menu/MenuManagement';
 import CustomerMenu from './components/customer/CustomerMenu';
 import Dashboard from './components/dashboard/Dashboard';
 import WaiterDashboard from './components/waiter/WaiterDashboard';
+import KitchenDashboard from './components/kitchen/KitchenDashboard';
 import OrderStatus from './components/customer/OrderStatus';
 import StaffManagement from './components/staff/StaffManagement';
 import InventoryManagement from './components/inventory/InventoryManagement';
 import Login from './components/auth/Login';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import Tables from './components/tables/Tables';
 
 // Create theme
 const theme = createTheme({
@@ -27,66 +29,62 @@ const theme = createTheme({
 });
 
 const App: React.FC = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.role || '';
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <Routes>
+          {/* Public routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/customer-menu/:tableId" element={<CustomerMenu />} />
+          <Route path="/order-status/:tableId" element={<OrderStatus />} />
+          <Route path="/tables" element={<Tables />} />
+          
+          {/* Protected routes */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <Dashboard />
-                </DashboardLayout>
+                <DashboardLayout />
               </ProtectedRoute>
             }
-          />
-          <Route path="/customer-menu/:tableId" element={<CustomerMenu />} />
-          <Route path="/menu/:tableId" element={<CustomerMenu />} />
-          <Route path="/order-status/:tableId" element={<OrderStatus />} />
-          <Route
-            path="/waiter/*"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <WaiterDashboard />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/menu"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <MenuManagement />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/inventory"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <InventoryManagement />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/staff"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <StaffManagement />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
+          >
+            {/* Admin routes */}
+            {userRole === 'admin' && (
+              <>
+                <Route index element={<Dashboard />} />
+                <Route path="menu" element={<MenuManagement />} />
+                <Route path="staff" element={<StaffManagement />} />
+                <Route path="inventory" element={<InventoryManagement />} />
+              </>
+            )}
+
+            {/* Waiter routes */}
+            {userRole === 'waiter' && (
+              <>
+                <Route index element={<WaiterDashboard />} />
+                <Route path="menu" element={<MenuManagement />} />
+              </>
+            )}
+
+            {/* Kitchen staff routes */}
+            {userRole === 'kitchen_staff' && (
+              <>
+                <Route index element={<KitchenDashboard />} />
+              </>
+            )}
+
+            {/* Redirect to appropriate dashboard if role doesn't match any routes */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+
+          {/* Redirect root to login if not authenticated, or to dashboard if authenticated */}
+          <Route path="/" element={
+            userRole ? <Navigate to="/dashboard" replace /> : <Navigate to="/tables" replace />
+          } />
         </Routes>
       </Router>
     </ThemeProvider>
