@@ -21,4 +21,27 @@ INSERT INTO menu_items (name, description, price, category, image_url) VALUES
 ('Chocolate Cake', 'Rich chocolate cake with ganache', 6.99, 'Desserts', 'https://images.unsplash.com/photo-1578985545062-69928b1d9587'),
 ('Tiramisu', 'Classic Italian dessert with coffee and mascarpone', 7.99, 'Desserts', 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9'),
 ('Coca Cola', 'Classic carbonated drink', 2.99, 'Drinks', 'https://images.unsplash.com/photo-1554866585-cd94860890b7'),
-('Fresh Orange Juice', 'Freshly squeezed orange juice', 3.99, 'Drinks', 'https://images.unsplash.com/photo-16134782237194052c0c2b4d4'); 
+('Fresh Orange Juice', 'Freshly squeezed orange juice', 3.99, 'Drinks', 'https://images.unsplash.com/photo-16134782237194052c0c2b4d4');
+
+-- Insert sample inventory items
+INSERT INTO inventory (name, description, quantity, unit, minimum_quantity) VALUES
+('Flour', 'All-purpose flour for baking', 50.00, 'kg', 10.00),
+('Sugar', 'Granulated white sugar', 30.00, 'kg', 5.00),
+('Salt', 'Fine table salt', 10.00, 'kg', 2.00),
+('Olive Oil', 'Extra virgin olive oil', 20.00, 'l', 5.00),
+('Tomato Sauce', 'Basic tomato sauce for pizza', 15.00, 'l', 3.00),
+('Mozzarella Cheese', 'Fresh mozzarella cheese', 25.00, 'kg', 5.00),
+('Pepperoni', 'Sliced pepperoni for pizza', 15.00, 'kg', 3.00),
+('Fresh Basil', 'Fresh basil leaves', 2.00, 'kg', 0.50),
+('Garlic', 'Fresh garlic cloves', 5.00, 'kg', 1.00),
+('Butter', 'Unsalted butter', 20.00, 'kg', 4.00),
+('Chicken Wings', 'Fresh chicken wings', 30.00, 'kg', 6.00),
+('Romaine Lettuce', 'Fresh romaine lettuce', 10.00, 'kg', 2.00),
+('Parmesan Cheese', 'Grated parmesan cheese', 8.00, 'kg', 2.00),
+('Croutons', 'Seasoned bread croutons', 5.00, 'kg', 1.00),
+('Chocolate', 'Dark chocolate for desserts', 15.00, 'kg', 3.00),
+('Coffee', 'Ground coffee beans', 10.00, 'kg', 2.00),
+('Mascarpone', 'Italian cream cheese', 8.00, 'kg', 2.00),
+('Coca Cola Syrup', 'Concentrated cola syrup', 10.00, 'l', 2.00),
+('Orange Juice Concentrate', 'Frozen orange juice concentrate', 15.00, 'l', 3.00)
+ON CONFLICT (name) DO NOTHING; 

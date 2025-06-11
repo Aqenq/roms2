@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price_at_time', oi.price_at_time,
+          'price', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -109,7 +109,7 @@ router.get('/:id', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price_at_time', oi.price_at_time,
+          'price', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -158,7 +158,7 @@ router.get('/table/:tableId', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price_at_time', oi.price_at_time,
+          'price', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o

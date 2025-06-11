@@ -21,7 +21,6 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Restaurant as RestaurantIcon,
-  TableRestaurant as TableIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
   Logout as LogoutIcon,
@@ -45,7 +44,6 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Menu Management', icon: <RestaurantIcon />, path: '/menu' },
     { text: 'Waiter View', icon: <PersonIcon />, path: '/waiter' },
-    { text: 'Tables', icon: <TableIcon />, path: '/tables' },
     { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     { text: 'Staff', icon: <PeopleIcon />, path: '/staff' },
   ];

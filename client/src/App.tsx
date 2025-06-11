@@ -7,8 +7,11 @@ import MenuManagement from './components/menu/MenuManagement';
 import CustomerMenu from './components/customer/CustomerMenu';
 import Dashboard from './components/dashboard/Dashboard';
 import WaiterDashboard from './components/waiter/WaiterDashboard';
-import Tables from './components/tables/Tables';
 import OrderStatus from './components/customer/OrderStatus';
+import StaffManagement from './components/staff/StaffManagement';
+import InventoryManagement from './components/inventory/InventoryManagement';
+import Login from './components/auth/Login';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Create theme
 const theme = createTheme({
@@ -29,35 +32,59 @@ const App: React.FC = () => {
       <CssBaseline />
       <Router>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
-          <Route path="/tables" element={<DashboardLayout><Tables /></DashboardLayout>} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Dashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route path="/customer-menu/:tableId" element={<CustomerMenu />} />
           <Route path="/menu/:tableId" element={<CustomerMenu />} />
           <Route path="/order-status/:tableId" element={<OrderStatus />} />
-          <Route path="/waiter/*" element={<DashboardLayout><WaiterDashboard /></DashboardLayout>} />
+          <Route
+            path="/waiter/*"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <WaiterDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/menu"
             element={
-              <DashboardLayout>
-                <MenuManagement />
-              </DashboardLayout>
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MenuManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inventory"
             element={
-              <DashboardLayout>
-                <div>Inventory Management (Coming Soon)</div>
-              </DashboardLayout>
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <InventoryManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/staff"
             element={
-              <DashboardLayout>
-                <div>Staff Management (Coming Soon)</div>
-              </DashboardLayout>
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <StaffManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
             }
           />
         </Routes>

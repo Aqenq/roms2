@@ -9,6 +9,9 @@ import authRoutes from './routes/auth';
 import menuRoutes from './routes/menu';
 import orderRoutes from './routes/orders';
 import tableRoutes from './routes/tables';
+import staffRoutes from './routes/staff';
+import inventoryRoutes from './routes/inventory';
+import menuItemIngredientsRoutes from './routes/menuItemIngredients';
 
 // Load environment variables
 dotenv.config();
@@ -39,6 +42,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/tables', tableRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/menu-item-ingredients', menuItemIngredientsRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
