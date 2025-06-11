@@ -7,10 +7,13 @@ export interface User {
   username: string;
   email: string;
   password: string;
-  role: 'admin' | 'waiter' | 'kitchen_staff';
+  role: string;
   created_at: Date;
   updated_at: Date;
 }
+
+// Simple hardcoded secret for homework purposes
+const JWT_SECRET = 'homework-secret-key';
 
 export class UserModel {
   static async create(user: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
@@ -23,6 +26,12 @@ export class UserModel {
     const values = [user.username, user.email, hashedPassword, user.role];
     const result = await pool.query(query, values);
     return result.rows[0];
+  }
+
+  static async findByUsername(username: string): Promise<User | null> {
+    const query = 'SELECT * FROM users WHERE username = $1';
+    const result = await pool.query(query, [username]);
+    return result.rows[0] || null;
   }
 
   static async findByEmail(email: string): Promise<User | null> {
@@ -42,13 +51,10 @@ export class UserModel {
   }
 
   static generateToken(user: User): string {
-    const secret = process.env.JWT_SECRET || 'your_jwt_secret';
-    const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
-    
     return jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      secret as jwt.Secret,
-      { expiresIn }
+      { id: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
     );
   }
 } 

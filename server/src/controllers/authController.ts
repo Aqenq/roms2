@@ -6,9 +6,9 @@ export const register = async (req: Request, res: Response) => {
     const { username, email, password, role } = req.body;
 
     // Check if user already exists
-    const existingUser = await UserModel.findByEmail(email);
+    const existingUser = await UserModel.findByUsername(username);
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'Username already exists' });
     }
 
     // Create new user
@@ -40,22 +40,29 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
+    console.log('Login attempt for username:', username);
 
     // Find user
-    const user = await UserModel.findByEmail(email);
+    const user = await UserModel.findByUsername(username);
     if (!user) {
+      console.log('User not found:', username);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+    console.log('User found:', { id: user.id, username: user.username, role: user.role });
 
     // Validate password
     const isValidPassword = await UserModel.validatePassword(user, password);
+    console.log('Password validation result:', isValidPassword);
+    
     if (!isValidPassword) {
+      console.log('Invalid password for user:', username);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Generate token
     const token = UserModel.generateToken(user);
+    console.log('Login successful for user:', username);
 
     res.json({
       message: 'Login successful',

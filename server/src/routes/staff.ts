@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import pool from '../config/database';
 import bcrypt from 'bcrypt';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-// Get all staff members
-router.get('/', async (req, res) => {
+// Get all staff members - requires admin authentication
+router.get('/', authenticate, authorize('admin'), async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT id, username, email, role FROM users WHERE role IN ($1, $2) ORDER BY username',
@@ -18,13 +19,24 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create new staff member
-router.post('/', async (req, res) => {
+// Create new staff member - requires admin authentication
+router.post('/', authenticate, authorize('admin'), async (req, res) => {
   const { username, email, password, role } = req.body;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
+
+    // Check if username or email already exists
+    const existingUser = await client.query(
+      'SELECT * FROM users WHERE username = $1 OR email = $2',
+      [username, email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Username or email already exists' });
+    }
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -46,14 +58,25 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update staff member
-router.put('/:id', async (req, res) => {
+// Update staff member - requires admin authentication
+router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
   const { id } = req.params;
   const { username, email, password, role } = req.body;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
+
+    // Check if username or email already exists for other users
+    const existingUser = await client.query(
+      'SELECT * FROM users WHERE (username = $1 OR email = $2) AND id != $3',
+      [username, email, id]
+    );
+
+    if (existingUser.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Username or email already exists' });
+    }
 
     let query = 'UPDATE users SET username = $1, email = $2, role = $3';
     let params = [username, email, role];
@@ -86,24 +109,23 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete staff member
-router.delete('/:id', async (req, res) => {
+// Delete staff member - requires admin authentication
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Delete table assignments first
-    await client.query('DELETE FROM table_assignments WHERE waiter_id = $1', [id]);
-
-    // Then delete the staff member
-    const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
-
-    if (result.rows.length === 0) {
+    // Check if staff member exists
+    const staffMember = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (staffMember.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Staff member not found' });
     }
+
+    // Delete the staff member
+    await client.query('DELETE FROM users WHERE id = $1', [id]);
 
     await client.query('COMMIT');
     res.json({ message: 'Staff member deleted successfully' });

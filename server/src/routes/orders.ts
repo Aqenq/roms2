@@ -1,10 +1,10 @@
 import express from 'express';
 import { pool } from '../db';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-// Create a new order
+// Create a new order - public endpoint for customers
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -73,8 +73,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all orders
-router.get('/', async (req, res) => {
+// Get all orders - accessible by all roles
+router.get('/', authenticate, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT o.*, 
@@ -99,8 +99,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get order by ID
-router.get('/:id', async (req, res) => {
+// Get order by ID - accessible by all roles
+router.get('/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(`
@@ -129,10 +129,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update order status
-router.patch('/:id/status', async (req, res) => {
+// Update order status - only kitchen staff and admins can update to 'preparing' and 'ready'
+router.patch('/:id/status', authenticate, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const userRole = req.user?.role;
+
+  if (!userRole) {
+    return res.status(401).json({ message: 'User role not found' });
+  }
+
+  // Check if the user has permission to update to this status
+  if (['preparing', 'ready'].includes(status) && !['admin', 'kitchen_staff'].includes(userRole)) {
+    return res.status(403).json({ message: 'Only kitchen staff can update order to preparing or ready status' });
+  }
+
+  // Only waiters and admins can mark orders as completed
+  if (status === 'completed' && !['admin', 'waiter'].includes(userRole)) {
+    return res.status(403).json({ message: 'Only waiters can mark orders as completed' });
+  }
+
   try {
     const result = await pool.query(
       'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
@@ -148,12 +164,12 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// Get orders for a specific table
+// Get orders for a specific table - public endpoint
 router.get('/table/:tableId', async (req, res) => {
   try {
     const { tableId } = req.params;
-    const result = await pool.query(
-      `SELECT o.*, 
+    const result = await pool.query(`
+      SELECT o.*, 
         json_agg(json_build_object(
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
@@ -166,17 +182,16 @@ router.get('/table/:tableId', async (req, res) => {
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
       WHERE o.table_id = $1 AND o.status != 'completed'
       GROUP BY o.id
-      ORDER BY o.created_at DESC`,
-      [tableId]
-    );
+      ORDER BY o.created_at DESC
+    `, [tableId]);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    console.error('Error fetching table orders:', error);
+    res.status(500).json({ message: 'Error fetching table orders' });
   }
 });
 
-// Update payment status
+// Update payment status - public endpoint for customers
 router.patch('/:id/payment', async (req, res) => {
   const client = await pool.connect();
   try {

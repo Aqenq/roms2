@@ -29,6 +29,12 @@ api.interceptors.response.use(
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
       console.error('API Error:', error.response.data);
+      if (error.response.status === 401) {
+        // Clear token and redirect to login on authentication error
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
       return Promise.reject(error.response.data);
     } else if (error.request) {
       // The request was made but no response was received

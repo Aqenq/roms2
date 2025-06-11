@@ -284,7 +284,7 @@ const MenuManagement: React.FC = () => {
                     size="small"
                     onClick={() => handleOpenIngredients(item)}
                   >
-                    {item.ingredients.length} Ingredients
+                    {item.ingredients?.length || 0} Ingredients
                   </Button>
                 </TableCell>
                 <TableCell>
@@ -407,7 +407,7 @@ const MenuManagement: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {selectedItem?.ingredients.map((ingredient) => (
+                  {selectedItem?.ingredients?.map((ingredient) => (
                     <TableRow key={ingredient.id}>
                       <TableCell>{ingredient.name}</TableCell>
                       <TableCell>{ingredient.quantity}</TableCell>

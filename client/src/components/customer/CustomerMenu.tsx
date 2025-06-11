@@ -33,7 +33,7 @@ import {
   Radio,
 } from '@mui/material';
 import { Add as AddIcon, Remove as RemoveIcon, ShoppingCart as CartIcon, Person as PersonIcon, Payment as PaymentIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../utils/axios';
 import { io } from 'socket.io-client';
 
 interface MenuItem {
@@ -65,6 +65,16 @@ interface Order {
   status: string;
   created_at: string;
   payment_status: string;
+}
+
+interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
 }
 
 const CustomerMenu: React.FC = () => {
@@ -110,7 +120,7 @@ const CustomerMenu: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:3000/api/menu');
+      const response = await api.get('/menu');
       setMenuItems(response.data);
     } catch (error) {
       console.error('Error fetching menu items:', error);
@@ -122,11 +132,12 @@ const CustomerMenu: React.FC = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/orders/table/${tableId}`);
+      const response = await api.get(`/orders/table/${tableId}`);
       setOrders(response.data);
       setError(null);
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      if (error.response?.status === 404) {
         setOrders([]);
         setError(null);
       } else {
@@ -214,16 +225,17 @@ const CustomerMenu: React.FC = () => {
         return;
       }
 
-      const response = await axios.post('http://localhost:3000/api/orders', orderData);
+      const response = await api.post('/orders', orderData);
       setCurrentOrder(response.data);
       setCart([]);
       setCartOpen(false);
       setOrderSuccess(true);
       fetchOrders();
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err as ApiError;
       console.error('Error placing order:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.error) {
-        setOrderError(err.response.data.error);
+      if (error.response?.data?.error) {
+        setOrderError(error.response.data.error);
       } else {
         setOrderError('Failed to place order. Please try again.');
       }
@@ -232,7 +244,8 @@ const CustomerMenu: React.FC = () => {
 
   const handleCallWaiter = async (tableId: number) => {
     try {
-      await axios.post(`http://localhost:3000/api/tables/${tableId}/call-waiter`);
+      await api.post(`/tables/${tableId}/call-waiter`);
+      setSuccess('Waiter has been notified');
     } catch (err) {
       console.error('Error calling waiter:', err);
       setError('Failed to call waiter');
@@ -247,7 +260,7 @@ const CustomerMenu: React.FC = () => {
         return;
       }
 
-      await axios.patch(`http://localhost:3000/api/orders/${unpaidOrder.id}/payment`, { 
+      await api.patch(`/orders/${unpaidOrder.id}/payment`, { 
         payment_method: paymentMethod 
       });
       

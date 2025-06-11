@@ -94,7 +94,7 @@ const Tables: React.FC = () => {
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={() => navigate(`/customer-menu/${table.id}`)}
+                  onClick={() => navigate(`/menu/${table.id}`)}
                   fullWidth
                   disabled={table.status !== 'available'}
                 >
@@ -111,7 +111,7 @@ const Tables: React.FC = () => {
         <DialogContent>
           <Box display="flex" flexDirection="column" alignItems="center" p={2}>
             <QRCodeSVG
-              value={`${window.location.origin}/customer-menu/${selectedTable?.id}`}
+              value={`${window.location.origin}/menu/${selectedTable?.id}`}
               size={256}
               level="H"
             />

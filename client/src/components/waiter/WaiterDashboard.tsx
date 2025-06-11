@@ -11,14 +11,21 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   Restaurant as RestaurantIcon,
-  TableRestaurant as TableIcon,
   CheckCircle as CheckCircleIcon,
   AccessTime as AccessTimeIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../utils/axios';
 import { io } from 'socket.io-client';
 
 interface Order {
@@ -33,73 +40,87 @@ interface Order {
     quantity: number;
     price: number;
     name: string;
+    notes?: string;
   }>;
 }
 
 interface Table {
   id: number;
-  table_number: number;
-  capacity: number;
+  number: number;
   status: string;
+  needs_waiter: boolean;
+  current_order_id?: number;
 }
 
 const WaiterDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchData();
-    const socket = io('http://localhost:3000');
-
-    socket.on('orderStatusChanged', () => {
-      fetchData();
-    });
-
-    socket.on('tableStatusChanged', () => {
-      fetchData();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<string[]>([]);
 
   const fetchData = async () => {
     try {
       const [ordersResponse, tablesResponse] = await Promise.all([
-        axios.get('http://localhost:3000/api/orders'),
-        axios.get('http://localhost:3000/api/tables'),
+        api.get('/orders'),
+        api.get('/tables')
       ]);
 
       setOrders(ordersResponse.data);
       setTables(tablesResponse.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching data:', err);
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to fetch data');
+      }
+    } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+
+    const socket = io('http://localhost:3000');
+    socket.on('orderStatusChanged', () => {
+      fetchData();
+    });
+
+    socket.on('tableNeedsWaiter', (tableNumber: number) => {
+      setNotifications(prev => [...prev, `Table ${tableNumber} needs attention`]);
+    });
+
+    const interval = setInterval(fetchData, 30000);
+
+    return () => {
+      socket.disconnect();
+      clearInterval(interval);
+    };
+  }, []);
+
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
-      await axios.patch(`http://localhost:3000/api/orders/${orderId}/status`, {
-        status: newStatus,
-      });
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
       fetchData();
-    } catch (error) {
-      console.error('Error updating order status:', error);
+    } catch (err: any) {
+      console.error('Error updating order status:', err);
+      setError(err.response?.data?.message || 'Failed to update order status');
     }
   };
 
   const updateTableStatus = async (tableId: number, newStatus: string) => {
     try {
-      await axios.patch(`http://localhost:3000/api/tables/${tableId}/status`, {
+      await api.patch(`/tables/${tableId}`, {
         status: newStatus,
+        needs_waiter: false
       });
       fetchData();
-    } catch (error) {
-      console.error('Error updating table status:', error);
+    } catch (err: any) {
+      console.error('Error updating table status:', err);
+      setError(err.response?.data?.message || 'Failed to update table status');
     }
   };
 
@@ -120,99 +141,198 @@ const WaiterDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
         <CircularProgress />
       </Box>
     );
   }
 
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{error}</Alert>
+        <Button onClick={fetchData} sx={{ mt: 2 }}>
+          Retry
+        </Button>
+      </Box>
+    );
+  }
+
+  const activeOrders = orders.filter(order => 
+    ['pending', 'preparing', 'ready'].includes(order.status)
+  );
+
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Waiter Dashboard
-      </Typography>
-
       <Grid container spacing={3}>
+        {/* Notifications Section */}
+        <Grid item xs={12}>
+          {notifications.length > 0 && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: '#fff3e0' }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                <NotificationsIcon sx={{ mr: 1 }} /> Notifications
+              </Typography>
+              <List>
+                {notifications.map((notification, index) => (
+                  <ListItem key={index}>
+                    <ListItemText primary={notification} />
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          )}
+        </Grid>
+
+        {/* Tables Needing Attention */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Tables Needing Attention
+            </Typography>
+            <List>
+              {tables
+                .filter((table) => table.needs_waiter)
+                .map((table) => (
+                  <React.Fragment key={table.id}>
+                    <ListItem>
+                      <ListItemText
+                        primary={`Table ${table.number}`}
+                        secondary="Customer is waiting"
+                      />
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => updateTableStatus(table.id, 'available')}
+                      >
+                        Attend
+                      </Button>
+                    </ListItem>
+                    <Divider />
+                  </React.Fragment>
+                ))}
+              {tables.filter(table => table.needs_waiter).length === 0 && (
+                <ListItem>
+                  <ListItemText primary="No tables need attention" />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+        </Grid>
+
+        {/* Active Orders */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
               Active Orders
             </Typography>
-            <List>
-              {orders
-                .filter(order => ['pending', 'preparing', 'ready'].includes(order.status))
-                .map((order) => (
-                  <React.Fragment key={order.id}>
-                    <ListItem>
-                      <ListItemText
-                        primary={`Order #${order.id} - Table ${order.table_number}`}
-                        secondary={
-                          <>
-                            <Typography component="span" variant="body2">
-                              Items: {order.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
-                            </Typography>
-                            <br />
-                            <Typography component="span" variant="body2">
-                              Total: ${order.total_amount}
-                            </Typography>
-                          </>
-                        }
-                      />
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Order ID</TableCell>
+                    <TableCell>Table</TableCell>
+                    <TableCell>Items</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {activeOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>#{order.id}</TableCell>
+                      <TableCell>Table {order.table_number}</TableCell>
+                      <TableCell>
+                        {order.items.map((item) => (
+                          <div key={item.id}>
+                            {item.quantity}x {item.name}
+                            {item.notes && (
+                              <Typography variant="caption" display="block" color="textSecondary">
+                                Note: {item.notes}
+                              </Typography>
+                            )}
+                          </div>
+                        ))}
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           label={order.status}
                           color={getStatusColor(order.status) as any}
                           size="small"
                         />
+                      </TableCell>
+                      <TableCell>
                         {order.status === 'ready' && (
                           <Button
                             variant="contained"
-                            size="small"
-                            startIcon={<CheckCircleIcon />}
+                            color="success"
                             onClick={() => updateOrderStatus(order.id, 'completed')}
                           >
                             Mark as Served
                           </Button>
                         )}
-                      </Box>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-            </List>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        {/* Assigned Tables */}
+        <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>
-              Tables
+              My Tables
             </Typography>
-            <Grid container spacing={2}>
-              {tables.map((table) => (
-                <Grid item xs={6} sm={4} key={table.id}>
-                  <Paper
-                    sx={{
-                      p: 2,
-                      textAlign: 'center',
-                      bgcolor: table.status === 'available' ? 'success.light' : 'warning.light',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => updateTableStatus(table.id, table.status === 'available' ? 'occupied' : 'available')}
-                  >
-                    <TableIcon sx={{ fontSize: 40 }} />
-                    <Typography variant="h6">Table {table.table_number}</Typography>
-                    <Typography variant="body2">Capacity: {table.capacity}</Typography>
-                    <Chip
-                      label={table.status}
-                      color={table.status === 'available' ? 'success' : 'warning'}
-                      size="small"
-                      sx={{ mt: 1 }}
-                    />
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Table Number</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Current Order</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {tables.map((table) => (
+                    <TableRow key={table.id}>
+                      <TableCell>Table {table.number}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={table.status}
+                          color={table.status === 'available' ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {table.current_order_id ? (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {/* View order details */}}
+                          >
+                            View Order #{table.current_order_id}
+                          </Button>
+                        ) : (
+                          'No active order'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => {/* Create new order */}}
+                        >
+                          New Order
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Paper>
         </Grid>
       </Grid>

@@ -20,8 +20,11 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import api from '../../utils/axios';
 
 interface Staff {
   id: number;
@@ -40,6 +43,8 @@ const StaffManagement: React.FC = () => {
     password: '',
     role: 'waiter',
   });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStaff();
@@ -47,12 +52,15 @@ const StaffManagement: React.FC = () => {
 
   const fetchStaff = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/staff');
-      if (!response.ok) throw new Error('Failed to fetch staff');
-      const data = await response.json();
-      setStaff(data);
-    } catch (error) {
-      console.error('Error fetching staff:', error);
+      setError(null);
+      setLoading(true);
+      const response = await api.get('/staff');
+      setStaff(response.data);
+    } catch (err: any) {
+      console.error('Error fetching staff:', err);
+      setError(err.response?.data?.message || 'Failed to fetch staff members');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,51 +94,54 @@ const StaffManagement: React.FC = () => {
       password: '',
       role: 'waiter',
     });
+    setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingStaff
-        ? `http://localhost:3000/api/staff/${editingStaff.id}`
-        : 'http://localhost:3000/api/staff';
-      const method = editingStaff ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error('Failed to save staff member');
-
-      handleCloseDialog();
+      setError(null);
+      if (editingStaff) {
+        await api.put(`/staff/${editingStaff.id}`, formData);
+      } else {
+        await api.post('/staff', formData);
+      }
       fetchStaff();
-    } catch (error) {
-      console.error('Error saving staff member:', error);
+      handleCloseDialog();
+    } catch (err: any) {
+      console.error('Error saving staff member:', err);
+      setError(err.response?.data?.message || 'Failed to save staff member');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
-
-    try {
-      const response = await fetch(`http://localhost:3000/api/staff/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete staff member');
-
-      fetchStaff();
-    } catch (error) {
-      console.error('Error deleting staff member:', error);
+    if (window.confirm('Are you sure you want to delete this staff member?')) {
+      try {
+        setError(null);
+        await api.delete(`/staff/${id}`);
+        fetchStaff();
+      } catch (err: any) {
+        console.error('Error deleting staff member:', err);
+        setError(err.response?.data?.message || 'Failed to delete staff member');
+      }
     }
   };
 
+  if (loading) {
+    return (
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">Staff Management</Typography>
         <Button variant="contained" color="primary" onClick={() => handleOpenDialog()}>
@@ -172,6 +183,11 @@ const StaffManagement: React.FC = () => {
         <DialogTitle>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
             <TextField
               fullWidth
               label="Username"

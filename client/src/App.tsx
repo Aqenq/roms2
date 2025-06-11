@@ -45,7 +45,7 @@ const App: React.FC = () => {
           
           {/* Protected routes */}
           <Route
-            path="/dashboard"
+            path="/"
             element={
               <ProtectedRoute>
                 <DashboardLayout />
@@ -56,6 +56,7 @@ const App: React.FC = () => {
             {userRole === 'admin' && (
               <>
                 <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="menu" element={<MenuManagement />} />
                 <Route path="staff" element={<StaffManagement />} />
                 <Route path="inventory" element={<InventoryManagement />} />
@@ -66,6 +67,7 @@ const App: React.FC = () => {
             {userRole === 'waiter' && (
               <>
                 <Route index element={<WaiterDashboard />} />
+                <Route path="dashboard" element={<WaiterDashboard />} />
                 <Route path="menu" element={<MenuManagement />} />
               </>
             )}
@@ -74,16 +76,17 @@ const App: React.FC = () => {
             {userRole === 'kitchen_staff' && (
               <>
                 <Route index element={<KitchenDashboard />} />
+                <Route path="dashboard" element={<KitchenDashboard />} />
               </>
             )}
 
             {/* Redirect to appropriate dashboard if role doesn't match any routes */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
 
           {/* Redirect root to login if not authenticated, or to dashboard if authenticated */}
-          <Route path="/" element={
-            userRole ? <Navigate to="/dashboard" replace /> : <Navigate to="/tables" replace />
+          <Route path="*" element={
+            userRole ? <Navigate to="/" replace /> : <Navigate to="/tables" replace />
           } />
         </Routes>
       </Router>

@@ -16,6 +16,9 @@ declare global {
   }
 }
 
+// Simple hardcoded secret for homework purposes
+const JWT_SECRET = 'homework-secret-key';
+
 export const authenticate = async (
   req: Request,
   res: Response,
@@ -28,10 +31,7 @@ export const authenticate = async (
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'your_jwt_secret'
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
     const user = await UserModel.findById(decoded.id);
     if (!user) {
@@ -41,17 +41,18 @@ export const authenticate = async (
     req.user = decoded;
     next();
   } catch (error) {
+    console.error('Authentication error:', error);
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
 
-export const authorize = (...roles: string[]) => {
+export const authorize = (role: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (req.user.role !== role) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

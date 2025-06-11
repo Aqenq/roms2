@@ -25,7 +25,7 @@ import {
   Inventory as InventoryIcon,
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../utils/axios';
 import { io } from 'socket.io-client';
 
 interface DashboardStats {
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/orders');
+      const response = await api.get('/orders');
       const activeOrders = response.data.filter((order: any) => 
         ['pending', 'preparing', 'ready'].includes(order.status)
       );
@@ -104,8 +104,8 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       const [ordersResponse, tablesResponse] = await Promise.all([
-        axios.get('http://localhost:3000/api/orders'),
-        axios.get('http://localhost:3000/api/tables'),
+        api.get('/orders'),
+        api.get('/tables')
       ]);
 
       const orders = ordersResponse.data;
@@ -141,33 +141,29 @@ const Dashboard: React.FC = () => {
 
   const handleStatusUpdate = async (orderId: number, newStatus: string) => {
     try {
-      await axios.patch(`http://localhost:3000/api/orders/${orderId}/status`, {
-        status: newStatus
-      });
-      fetchOrders(); // Refresh orders after status update
-      fetchDashboardData(); // Refresh stats after status update
-    } catch (err) {
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
+      fetchOrders();
+      fetchDashboardData();
+    } catch (err: any) {
       console.error('Error updating order status:', err);
-      setError('Failed to update order status');
+      setError(err.response?.data?.message || 'Failed to update order status');
     }
   };
 
   const handlePayment = async (orderId: number) => {
     try {
-      await axios.patch(`http://localhost:3000/api/orders/${orderId}/payment`, {
-        is_paid: true
-      });
+      await api.patch(`/orders/${orderId}/payment`, { is_paid: true });
       fetchOrders();
       fetchDashboardData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error processing payment:', err);
-      setError('Failed to process payment');
+      setError(err.response?.data?.message || 'Failed to process payment');
     }
   };
 
   const handleCallWaiter = async (tableId: number) => {
     try {
-      await axios.post(`http://localhost:3000/api/tables/${tableId}/call-waiter`);
+      await api.post(`/tables/${tableId}/call-waiter`);
       // Show success message or notification
     } catch (err) {
       console.error('Error calling waiter:', err);
@@ -279,7 +275,7 @@ const Dashboard: React.FC = () => {
               <TableBody>
                 {recentOrders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell>{order.id}</TableCell>
+                    <TableCell>#{order.id}</TableCell>
                     <TableCell>Table {order.table_number}</TableCell>
                     <TableCell>
                       {order.items.map((item) => (
@@ -290,10 +286,13 @@ const Dashboard: React.FC = () => {
                     </TableCell>
                     <TableCell>${Number(order.total_amount).toFixed(2)}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={order.status.toUpperCase()}
-                        color={getStatusColor(order.status) as any}
-                      />
+                      <Typography
+                        sx={{
+                          color: order.status === 'completed' ? 'success.main' : 'warning.main',
+                        }}
+                      >
+                        {order.status.toUpperCase()}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       {order.status === 'pending' && (
@@ -325,14 +324,6 @@ const Dashboard: React.FC = () => {
                             sx={{ mr: 1 }}
                           >
                             Complete
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={() => handleCallWaiter(order.table_id)}
-                            sx={{ mr: 1 }}
-                          >
-                            Call Waiter
                           </Button>
                         </>
                       )}

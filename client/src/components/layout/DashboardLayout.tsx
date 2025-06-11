@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -8,90 +8,75 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
   Typography,
   useTheme,
-  useMediaQuery,
-  Divider
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Restaurant as RestaurantIcon,
-  Inventory as InventoryIcon,
   People as PeopleIcon,
-  Logout as LogoutIcon,
-  Person as PersonIcon,
+  Inventory as InventoryIcon,
+  ExitToApp as LogoutIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
 
-const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mobileOpen, setMobileOpen] = useState(false);
+const DashboardLayout: React.FC = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.role || '';
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Menu Management', icon: <RestaurantIcon />, path: '/menu' },
-    { text: 'Waiter View', icon: <PersonIcon />, path: '/waiter' },
-    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
-    { text: 'Staff', icon: <PeopleIcon />, path: '/staff' },
+    ...(userRole === 'admin' ? [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+      { text: 'Menu Management', icon: <RestaurantIcon />, path: '/menu' },
+      { text: 'Staff Management', icon: <PeopleIcon />, path: '/staff' },
+      { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
+    ] : userRole === 'waiter' ? [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+      { text: 'Menu', icon: <RestaurantIcon />, path: '/menu' },
+    ] : [
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    ]),
+    { text: 'Logout', icon: <LogoutIcon />, onClick: handleLogout },
   ];
 
   const drawer = (
     <div>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          ROMS
+          Restaurant POS
         </Typography>
       </Toolbar>
-      <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => {
-                navigate(item.path);
-                if (isMobile) {
-                  setMobileOpen(false);
-                }
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
+          <ListItem
+            button
+            key={item.text}
+            onClick={item.onClick || (() => navigate(item.path))}
+            selected={location.pathname === item.path}
+          >
+            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.text} />
           </ListItem>
         ))}
-      </List>
-      <Divider />
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton onClick={() => navigate('/customer-menu')}>
-            <ListItemIcon><RestaurantIcon /></ListItemIcon>
-            <ListItemText primary="Customer View" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton onClick={() => {
-            // Handle logout
-            localStorage.removeItem('token');
-            navigate('/login');
-          }}>
-            <ListItemIcon><LogoutIcon /></ListItemIcon>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
-        </ListItem>
       </List>
     </div>
   );
@@ -103,7 +88,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` }
+          ml: { sm: `${drawerWidth}px` },
         }}
       >
         <Toolbar>
@@ -117,7 +102,9 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            {menuItems.find(item => item.path === location.pathname)?.text || 'ROMS'}
+            {userRole === 'admin' ? 'Admin Dashboard' :
+             userRole === 'waiter' ? 'Waiter Dashboard' :
+             'Kitchen Dashboard'}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -130,14 +117,11 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true // Better open performance on mobile.
+            keepMounted: true, // Better open performance on mobile.
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth
-            }
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
         >
           {drawer}
@@ -146,10 +130,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth
-            }
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
           open
         >
@@ -161,11 +142,11 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` }
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          mt: '64px',
         }}
       >
-        <Toolbar />
-        {children}
+        <Outlet />
       </Box>
     </Box>
   );

@@ -336,7 +336,7 @@ const InventoryManagement: React.FC = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {menuItem.ingredients.map((ingredient) => (
+                        {menuItem.ingredients?.map((ingredient) => (
                           <TableRow key={ingredient.id}>
                             <TableCell>{ingredient.name}</TableCell>
                             <TableCell>{ingredient.quantity}</TableCell>

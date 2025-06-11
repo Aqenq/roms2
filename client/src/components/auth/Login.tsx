@@ -14,7 +14,7 @@ import api from '../../utils/axios';
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -29,12 +29,19 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log('Attempting login with:', { username: formData.username });
       const response = await api.post('/auth/login', formData);
+      console.log('Login response:', response.data);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      navigate('/dashboard');
+      navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred');
+      console.error('Login error details:', {
+        message: err.response?.data?.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      setError(err.response?.data?.message || 'An error occurred during login');
     }
   };
 
@@ -62,12 +69,12 @@ const Login: React.FC = () => {
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
+              id="username"
+              label="Username"
+              name="username"
+              autoComplete="username"
               autoFocus
-              value={formData.email}
+              value={formData.username}
               onChange={handleChange}
             />
             <TextField
