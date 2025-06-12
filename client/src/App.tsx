@@ -68,7 +68,6 @@ const App: React.FC = () => {
               <>
                 <Route index element={<WaiterDashboard />} />
                 <Route path="dashboard" element={<WaiterDashboard />} />
-                <Route path="menu" element={<MenuManagement />} />
               </>
             )}
 

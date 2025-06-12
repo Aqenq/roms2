@@ -51,7 +51,6 @@ const DashboardLayout: React.FC = () => {
       { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     ] : userRole === 'waiter' ? [
       { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-      { text: 'Menu', icon: <RestaurantIcon />, path: '/menu' },
     ] : [
       { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     ]),

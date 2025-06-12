@@ -82,7 +82,7 @@ router.get('/', authenticate, async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -109,7 +109,7 @@ router.get('/:id', authenticate, async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
@@ -174,13 +174,13 @@ router.get('/table/:tableId', async (req, res) => {
           'id', oi.id,
           'menu_item_id', oi.menu_item_id,
           'quantity', oi.quantity,
-          'price', oi.price_at_time,
+          'price_at_time', oi.price_at_time,
           'name', m.name
         )) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
-      WHERE o.table_id = $1 AND o.status != 'completed'
+      WHERE o.table_id = $1 AND o.payment_status = 'unpaid'
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `, [tableId]);

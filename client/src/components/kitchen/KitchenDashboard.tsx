@@ -18,7 +18,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
 } from '@mui/material';
 import {
   Restaurant as RestaurantIcon,
@@ -41,7 +40,6 @@ interface Order {
     quantity: number;
     price: number;
     name: string;
-    notes?: string;
   }>;
 }
 
@@ -49,7 +47,6 @@ const KitchenDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [kitchenNotes, setKitchenNotes] = useState<{ [key: number]: string }>({});
 
   const fetchOrders = async () => {
     try {
@@ -91,20 +88,6 @@ const KitchenDashboard: React.FC = () => {
     } catch (err: any) {
       console.error('Error updating order status:', err);
       setError(err.response?.data?.message || 'Failed to update order status');
-    }
-  };
-
-  const addKitchenNote = async (orderId: number, note: string) => {
-    try {
-      await api.post(`/orders/${orderId}/notes`, {
-        note,
-        type: 'kitchen'
-      });
-      setKitchenNotes(prev => ({ ...prev, [orderId]: '' }));
-      fetchOrders();
-    } catch (err: any) {
-      console.error('Error adding kitchen note:', err);
-      setError(err.response?.data?.message || 'Failed to add kitchen note');
     }
   };
 
@@ -192,11 +175,6 @@ const KitchenDashboard: React.FC = () => {
                           {order.items.map((item) => (
                             <div key={item.id}>
                               {item.quantity}x {item.name}
-                              {item.notes && (
-                                <Typography variant="caption" display="block" color="textSecondary">
-                                  Note: {item.notes}
-                                </Typography>
-                              )}
                             </div>
                           ))}
                         </TableCell>
@@ -252,7 +230,6 @@ const KitchenDashboard: React.FC = () => {
                     <TableCell>Items</TableCell>
                     <TableCell>Time</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell>Notes</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -265,11 +242,6 @@ const KitchenDashboard: React.FC = () => {
                         {order.items.map((item) => (
                           <div key={item.id}>
                             {item.quantity}x {item.name}
-                            {item.notes && (
-                              <Typography variant="caption" display="block" color="textSecondary">
-                                Note: {item.notes}
-                              </Typography>
-                            )}
                           </div>
                         ))}
                       </TableCell>
@@ -279,19 +251,6 @@ const KitchenDashboard: React.FC = () => {
                           label={order.status}
                           color={getStatusColor(order.status) as any}
                           size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          placeholder="Add kitchen note..."
-                          value={kitchenNotes[order.id] || ''}
-                          onChange={(e) => setKitchenNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && kitchenNotes[order.id]) {
-                              addKitchenNote(order.id, kitchenNotes[order.id]);
-                            }
-                          }}
                         />
                       </TableCell>
                       <TableCell>

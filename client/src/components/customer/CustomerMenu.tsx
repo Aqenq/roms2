@@ -254,19 +254,27 @@ const CustomerMenu: React.FC = () => {
 
   const handlePayment = async () => {
     try {
-      const unpaidOrder = orders.find(order => order.payment_status === 'unpaid');
-      if (!unpaidOrder) {
-        setError('No unpaid order found');
+      const unpaidOrders = orders.filter(order => order.payment_status === 'unpaid');
+      if (unpaidOrders.length === 0) {
+        setError('No unpaid orders found');
         return;
       }
 
-      await api.patch(`/orders/${unpaidOrder.id}/payment`, { 
-        payment_method: paymentMethod 
-      });
+      // Calculate total amount for all unpaid orders
+      const totalAmount = unpaidOrders.reduce((sum, order) => sum + Number(order.total_amount), 0);
+
+      // Process payment for all orders
+      await Promise.all(
+        unpaidOrders.map(order => 
+          api.patch(`/orders/${order.id}/payment`, { 
+            payment_method: paymentMethod 
+          })
+        )
+      );
       
       setSuccess('Payment successful!');
       setPaymentDialogOpen(false);
-      setOrders(orders.filter(order => order.status !== 'completed'));
+      setOrders([]); // Clear all orders since they're all paid
     } catch (err) {
       console.error('Payment error:', err);
       setError('Failed to process payment. Please try again.');
@@ -342,7 +350,7 @@ const CustomerMenu: React.FC = () => {
                   <ListItem key={item.id}>
                     <ListItemText
                       primary={item.name}
-                      secondary={`${item.quantity}x - $${(item.price_at_time * item.quantity).toFixed(2)}`}
+                      secondary={`${item.quantity}x - $${Number(item.price_at_time).toFixed(2)} each`}
                     />
                   </ListItem>
                 ))}
@@ -496,12 +504,12 @@ const CustomerMenu: React.FC = () => {
         <DialogTitle>Make Payment</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
-            {orders.find(order => order.payment_status === 'unpaid') ? (
+            {orders.length > 0 ? (
               <>
                 <Typography variant="h6" gutterBottom>
                   Total Amount: ${(() => {
-                    const unpaidOrder = orders.find(order => order.payment_status === 'unpaid');
-                    return unpaidOrder?.total_amount ? Number(unpaidOrder.total_amount).toFixed(2) : '0.00';
+                    const total = orders.reduce((sum, order) => sum + Number(order.total_amount), 0);
+                    return total.toFixed(2);
                   })()}
                 </Typography>
                 <FormControl component="fieldset" sx={{ mt: 2 }}>
@@ -528,9 +536,9 @@ const CustomerMenu: React.FC = () => {
             onClick={handlePayment} 
             variant="contained" 
             color="primary"
-            disabled={!orders.find(order => order.payment_status === 'unpaid')}
+            disabled={orders.length === 0}
           >
-            Confirm Payment
+            Pay All Orders
           </Button>
         </DialogActions>
       </Dialog>
