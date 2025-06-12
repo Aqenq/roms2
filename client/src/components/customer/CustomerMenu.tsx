@@ -64,7 +64,6 @@ interface Order {
   total_amount: number;
   status: string;
   created_at: string;
-  payment_status: string;
 }
 
 interface ApiError {
@@ -88,33 +87,55 @@ const CustomerMenu: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Force clear everything
+  const forceClearOrders = () => {
+    console.log('Clearing orders for table:', tableId);
+    setOrders([]);
+    setCurrentOrder(null);
+    setCart([]);
+    setPaymentDialogOpen(false);
+    setPaymentSuccess(true);
+  };
 
   useEffect(() => {
     if (!tableId) {
       navigate('/tables');
       return;
     }
-    fetchMenuItems();
-    fetchOrders();
 
     const socket = io('http://localhost:3000');
+    
+    fetchMenuItems();
+    if (!paymentSuccess) {
+      fetchOrders();
+    }
+
     socket.on('orderStatusChanged', (data) => {
-      if (data.table_id === parseInt(tableId)) {
+      console.log('Order status changed:', data);
+      if (data.table_id === parseInt(tableId) && !paymentSuccess) {
         fetchOrders();
+      }
+    });
+
+    socket.on('paymentCompleted', (data) => {
+      console.log('Payment completed event received:', data);
+      if (data.tableNumber === parseInt(tableId)) {
+        forceClearOrders();
+        setSuccess('Payment completed successfully');
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [tableId, navigate]);
+  }, [tableId, navigate, paymentSuccess]);
 
   const fetchMenuItems = async () => {
     try {
@@ -133,6 +154,7 @@ const CustomerMenu: React.FC = () => {
   const fetchOrders = async () => {
     try {
       const response = await api.get(`/orders/table/${tableId}`);
+      console.log('Fetched orders:', response.data);
       setOrders(response.data);
       setError(null);
     } catch (err: unknown) {
@@ -197,10 +219,29 @@ const CustomerMenu: React.FC = () => {
         return 'info';
       case 'ready':
         return 'success';
-      case 'completed':
+      case 'served':
+        return 'success';
+      case 'paid':
         return 'default';
       default:
         return 'default';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'preparing':
+        return 'Preparing';
+      case 'ready':
+        return 'Ready for Pickup';
+      case 'served':
+        return 'Served';
+      case 'paid':
+        return 'Paid';
+      default:
+        return status;
     }
   };
 
@@ -242,42 +283,30 @@ const CustomerMenu: React.FC = () => {
     }
   };
 
-  const handleCallWaiter = async (tableId: number) => {
-    try {
-      await api.post(`/tables/${tableId}/call-waiter`);
-      setSuccess('Waiter has been notified');
-    } catch (err) {
-      console.error('Error calling waiter:', err);
-      setError('Failed to call waiter');
-    }
+  const handleCallWaiter = () => {
+    const socket = io('http://localhost:3000');
+    socket.emit('callWaiter', { tableNumber: parseInt(tableId || '0') });
+    setSuccess('Waiter has been called');
   };
 
-  const handlePayment = async () => {
-    try {
-      const unpaidOrders = orders.filter(order => order.payment_status === 'unpaid');
-      if (unpaidOrders.length === 0) {
-        setError('No unpaid orders found');
-        return;
-      }
-
-      // Calculate total amount for all unpaid orders
-      const totalAmount = unpaidOrders.reduce((sum, order) => sum + Number(order.total_amount), 0);
-
-      // Process payment for all orders
-      await Promise.all(
-        unpaidOrders.map(order => 
-          api.patch(`/orders/${order.id}/payment`, { 
-            payment_method: paymentMethod 
-          })
-        )
-      );
-      
-      setSuccess('Payment successful!');
-      setPaymentDialogOpen(false);
-      setOrders([]); // Clear all orders since they're all paid
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError('Failed to process payment. Please try again.');
+  const handlePayment = () => {
+    if (!tableId) return;
+    
+    if (paymentMethod === 'cash') {
+      // Send payment request for cash payment
+      const socket = io('http://localhost:3000');
+      socket.emit('waiterCalled', parseInt(tableId));
+      setSuccess('Payment request sent to waiter');
+      // Clear everything immediately
+      forceClearOrders();
+    } else {
+      // For card payment, mark all orders as paid
+      const socket = io('http://localhost:3000');
+      console.log('Emitting paymentCompleted for table:', tableId);
+      socket.emit('paymentCompleted', parseInt(tableId));
+      setSuccess('Payment completed successfully');
+      // Clear everything immediately
+      forceClearOrders();
     }
   };
 
@@ -300,6 +329,105 @@ const CustomerMenu: React.FC = () => {
     );
   }
 
+  // If payment is completed, show a different view
+  if (paymentSuccess) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">Menu</Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleCallWaiter}
+              startIcon={<PersonIcon />}
+            >
+              Call Waiter
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => setPaymentDialogOpen(true)}
+              startIcon={<PaymentIcon />}
+            >
+              Make Payment
+            </Button>
+            <IconButton color="primary" onClick={() => setCartOpen(true)}>
+              <Badge badgeContent={getTotalItems()} color="secondary">
+                <CartIcon />
+              </Badge>
+            </IconButton>
+          </Box>
+        </Box>
+
+        <Paper sx={{ p: 2, mb: 3, bgcolor: 'success.light' }}>
+          <Typography variant="h6" gutterBottom>
+            Payment Completed
+          </Typography>
+          <Typography>
+            Thank you for your payment. Your orders have been cleared.
+          </Typography>
+        </Paper>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Typography variant="h4">Our Menu</Typography>
+        </Box>
+
+        <Tabs
+          value={selectedCategory}
+          onChange={(_, newValue) => setSelectedCategory(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 3 }}
+        >
+          {categories.map(category => (
+            <Tab
+              key={category}
+              label={category.charAt(0).toUpperCase() + category.slice(1)}
+              value={category}
+            />
+          ))}
+        </Tabs>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
+          {filteredItems.map((item) => (
+            <Card key={item.id}>
+              <CardMedia
+                component="img"
+                height="140"
+                image={item.image_url || '/placeholder-food.jpg'}
+                alt={item.name}
+                sx={{ objectFit: 'cover' }}
+              />
+              <CardContent>
+                <Typography variant="h6">{item.name}</Typography>
+                <Typography color="textSecondary" gutterBottom>
+                  {item.category}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {item.description}
+                </Typography>
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6" color="primary">
+                    ${item.price}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => addToCart(item)}
+                  >
+                    Add to Cart
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
+
+  // Normal view with orders
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -308,7 +436,7 @@ const CustomerMenu: React.FC = () => {
           <Button
             variant="contained"
             color="primary"
-            onClick={() => handleCallWaiter(parseInt(tableId || '0'))}
+            onClick={handleCallWaiter}
             startIcon={<PersonIcon />}
           >
             Call Waiter
@@ -329,7 +457,7 @@ const CustomerMenu: React.FC = () => {
         </Box>
       </Box>
 
-      {orders.length > 0 && (
+      {orders.length > 0 && !paymentSuccess && (
         <Paper sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Your Orders
@@ -341,7 +469,7 @@ const CustomerMenu: React.FC = () => {
                   Order #{order.id} - {new Date(order.created_at).toLocaleString()}
                 </Typography>
                 <Chip
-                  label={order.status.toUpperCase()}
+                  label={getStatusText(order.status)}
                   color={getStatusColor(order.status)}
                 />
               </Box>
@@ -519,9 +647,14 @@ const CustomerMenu: React.FC = () => {
                     onChange={(e) => setPaymentMethod(e.target.value as 'card' | 'cash')}
                   >
                     <FormControlLabel value="card" control={<Radio />} label="Pay with Card" />
-                    <FormControlLabel value="cash" control={<Radio />} label="Pay in Person" />
+                    <FormControlLabel value="cash" control={<Radio />} label="Pay in Person (Call Waiter)" />
                   </RadioGroup>
                 </FormControl>
+                {paymentMethod === 'cash' && (
+                  <Typography color="info" sx={{ mt: 2 }}>
+                    A waiter will be notified to come to your table for payment
+                  </Typography>
+                )}
               </>
             ) : (
               <Typography color="error">
@@ -538,7 +671,7 @@ const CustomerMenu: React.FC = () => {
             color="primary"
             disabled={orders.length === 0}
           >
-            Pay All Orders
+            {paymentMethod === 'cash' ? 'Call Waiter for Payment' : 'Request Payment'}
           </Button>
         </DialogActions>
       </Dialog>

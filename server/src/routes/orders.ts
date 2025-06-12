@@ -22,10 +22,10 @@ router.post('/', async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Create the order with 'unpaid' status
+    // Create the order with 'pending' status
     const orderResult = await client.query(
-      'INSERT INTO orders (table_id, status, total_amount, payment_status) VALUES ($1, $2, $3, $4) RETURNING id',
-      [table_id, 'pending', total_amount, 'unpaid']
+      'INSERT INTO orders (table_id, status, total_amount) VALUES ($1, $2, $3) RETURNING id',
+      [table_id, 'pending', total_amount]
     );
     
     const orderId = orderResult.rows[0].id;
@@ -88,7 +88,7 @@ router.get('/', authenticate, async (req, res) => {
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
-      WHERE o.status != 'completed'
+      WHERE o.status NOT IN ('paid', 'completed')
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `);
@@ -144,9 +144,14 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     return res.status(403).json({ message: 'Only kitchen staff can update order to preparing or ready status' });
   }
 
-  // Only waiters and admins can mark orders as completed
-  if (status === 'completed' && !['admin', 'waiter'].includes(userRole)) {
-    return res.status(403).json({ message: 'Only waiters can mark orders as completed' });
+  // Only waiters and admins can mark orders as served
+  if (status === 'served' && !['admin', 'waiter'].includes(userRole)) {
+    return res.status(403).json({ message: 'Only waiters can mark orders as served' });
+  }
+
+  // Only waiters and admins can mark orders as paid
+  if (status === 'paid' && !['admin', 'waiter'].includes(userRole)) {
+    return res.status(403).json({ message: 'Only waiters can mark orders as paid' });
   }
 
   try {
@@ -168,6 +173,8 @@ router.patch('/:id/status', authenticate, async (req, res) => {
 router.get('/table/:tableId', async (req, res) => {
   try {
     const { tableId } = req.params;
+    console.log('Fetching orders for table:', tableId);
+    
     const result = await pool.query(`
       SELECT o.*, 
         json_agg(json_build_object(
@@ -180,50 +187,17 @@ router.get('/table/:tableId', async (req, res) => {
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items m ON oi.menu_item_id = m.id
-      WHERE o.table_id = $1 AND o.payment_status = 'unpaid'
+      WHERE o.table_id = $1 
+        AND o.status != 'paid'
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `, [tableId]);
+    
+    console.log('Found orders:', result.rows.length, 'for table:', tableId);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching table orders:', error);
     res.status(500).json({ message: 'Error fetching table orders' });
-  }
-});
-
-// Update payment status - public endpoint for customers
-router.patch('/:id/payment', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { id } = req.params;
-    const { payment_method } = req.body;
-
-    // First check if the order exists and is unpaid
-    const orderCheck = await client.query(
-      'SELECT * FROM orders WHERE id = $1 AND payment_status = $2',
-      [id, 'unpaid']
-    );
-
-    if (orderCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'No unpaid order found with this ID' });
-    }
-
-    await client.query('BEGIN');
-
-    // Update both payment status and order status
-    await client.query(
-      'UPDATE orders SET payment_status = $1, payment_method = $2, status = $3 WHERE id = $4',
-      ['paid', payment_method, 'completed', id]
-    );
-
-    await client.query('COMMIT');
-    res.json({ message: 'Payment processed successfully' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error processing payment:', error);
-    res.status(500).json({ error: 'Failed to process payment' });
-  } finally {
-    client.release();
   }
 });
 

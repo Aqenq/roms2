@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     table_id INTEGER REFERENCES tables(id),
     total_amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'active',
-    payment_status VARCHAR(20) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'cancelled')),
-    payment_method VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'preparing', 'ready', 'served', 'paid')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

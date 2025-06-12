@@ -33,8 +33,8 @@ router.post('/:id/call-waiter', async (req, res) => {
   }
 });
 
-// Update table status - requires authentication
-router.patch('/:id', authenticate, authorize('admin', 'waiter'), async (req, res) => {
+// Update table status - public for prototype
+router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, needs_waiter } = req.body;
