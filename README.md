@@ -114,12 +114,16 @@ roms/
 ## Default Login Credentials
 
 - Admin:
-  - Email: admin@roms.com
+  - username: admin
   - Password: admin123
 
 - Waiter:
-  - Email: waiter@roms.com
+  - username: waiter1
   - Password: waiter123
+ 
+- Chef
+  - username: chef1
+  - password: kitchen123
 
 ## Troubleshooting
 
