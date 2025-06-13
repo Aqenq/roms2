@@ -68,7 +68,8 @@ ON CONFLICT (table_number) DO NOTHING;
 
 -- Insert sample menu items
 INSERT INTO menu_items (name, description, price, category, image_url) VALUES
-    ('Margherita Pizza', 'Classic tomato sauce, mozzarella, and basil', 12.99, 'Pizza', '/images/margherita.jpg'),
-    ('Caesar Salad', 'Romaine lettuce, croutons, parmesan, and Caesar dressing', 8.99, 'Salad', '/images/caesar.jpg'),
-    ('Spaghetti Carbonara', 'Pasta with eggs, cheese, pancetta, and black pepper', 14.99, 'Pasta', '/images/carbonara.jpg')
+    ('Margherita Pizza', 'Classic tomato sauce, mozzarella, and basil', 12.99, 'Pizza', ''),
+    ('Caesar Salad', 'Romaine lettuce, croutons, parmesan, and Caesar dressing', 8.99, 'Salad', 'https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80'),
+    ('Spaghetti Carbonara', 'Pasta with eggs, cheese, pancetta, and black pepper', 14.99, 'Pasta', 'https://images.unsplash.com/photo-1523987355523-c7b5b0723c6b?auto=format&fit=crop&w=400&q=80'),
+    ('Garlic Bread', 'Toasted bread with garlic and herbs', 5.99, 'Appetizer', '')
 ON CONFLICT (id) DO NOTHING; 
