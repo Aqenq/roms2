@@ -27,7 +27,6 @@ A comprehensive restaurant management system that streamlines operations through
 roms/
 ├── client/                 # Frontend React application
 ├── server/                 # Backend Node.js application
-├── database/              # Database migrations and seeds
 └── docs/                  # Documentation
 ```
 
@@ -39,8 +38,48 @@ roms/
 
 ## Setup Instructions
 
-1. Clone the repository
-2. Install dependencies:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Aqenq/roms2.git
+   cd roms2
+   ```
+
+2. Set up the database:
+   ```bash
+   # Create a PostgreSQL database named 'roms'
+   createdb roms
+   ```
+
+3. Set up environment variables:
+
+   Create `.env` file in the server directory:
+   ```
+   # Server Configuration
+   PORT=3000
+   NODE_ENV=development
+
+   # Database Configuration
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=roms
+   DB_USER=postgres
+   DB_PASSWORD=postgres
+
+   # JWT Configuration
+   JWT_SECRET=your_jwt_secret_key
+   JWT_EXPIRES_IN=24h
+
+   # Client URL (for CORS)
+   CLIENT_URL=http://localhost:5173
+   ```
+
+   Create `.env` file in the client directory:
+   ```
+   VITE_API_URL=http://localhost:3000/api
+   VITE_SOCKET_URL=http://localhost:3000
+   ```
+
+4. Install dependencies:
    ```bash
    # Install backend dependencies
    cd server
@@ -51,31 +90,50 @@ roms/
    npm install
    ```
 
-3. Set up environment variables:
-   - Copy `.env.example` to `.env` in both client and server directories
-   - Update the variables with your configuration
-
-4. Set up the database:
+5. Initialize the database:
    ```bash
    cd server
-   npm run db:migrate
-   npm run db:seed
+   # Run the database initialization script
+   psql -d roms -f src/db/init.sql
    ```
 
-5. Start the development servers:
+6. Start the development servers:
    ```bash
-   # Start backend server
-   cd server
+   # Start backend server (in server directory)
    npm run dev
 
-   # Start frontend server
+   # Start frontend server (in client directory)
    cd ../client
    npm run dev
    ```
 
-## API Documentation
+7. Access the application:
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:3000
 
-API documentation is available at `/api/docs` when running the server.
+## Default Login Credentials
+
+- Admin:
+  - Email: admin@roms.com
+  - Password: admin123
+
+- Waiter:
+  - Email: waiter@roms.com
+  - Password: waiter123
+
+## Troubleshooting
+
+1. If you get database connection errors:
+   - Make sure PostgreSQL is running
+   - Check if the database credentials in `.env` match your PostgreSQL setup
+   - Verify the database 'roms' exists
+
+2. If you get CORS errors:
+   - Make sure both frontend and backend servers are running
+   - Check if the CLIENT_URL in server's `.env` matches your frontend URL
+
+3. If you get socket connection errors:
+   - Verify the VITE_SOCKET_URL in client's `.env` matches your backend URL
 
 ## Contributing
 
