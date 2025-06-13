@@ -13,6 +13,7 @@ import tableRoutes from './routes/tables';
 import staffRoutes from './routes/staff';
 import inventoryRoutes from './routes/inventory';
 import menuItemIngredientsRoutes from './routes/menuItemIngredients';
+import feedbackRoutes from './routes/feedback';
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/menu-item-ingredients', menuItemIngredientsRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -103,16 +105,21 @@ io.on('connection', (socket) => {
   });
 
   // Handle waiter calls
-  socket.on('waiterCalled', (tableNumber) => {
-    console.log('Waiter called for table:', tableNumber);
-    // Broadcast to all clients
-    io.emit('waiterCalled', tableNumber);
-    
-    // Also update the database
+  socket.on('callWaiter', (data) => {
+    const { tableNumber, type } = data;
+    console.log(`Waiter called for table: ${tableNumber}, type: ${type}`);
+
     pool.query(
       'UPDATE tables SET needs_waiter = true WHERE table_number = $1',
       [tableNumber]
-    ).catch((err: Error) => {
+    ).then(() => {
+      io.emit('waiterCalled', {
+        tableNumber: parseInt(tableNumber),
+        type,
+        timestamp: new Date().toISOString()
+      });
+      console.log('Waiter called event emitted for table:', tableNumber, 'type:', type);
+    }).catch((err: Error) => {
       console.error('Error updating table status:', err);
     });
   });

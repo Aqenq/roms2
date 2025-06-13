@@ -35,6 +35,7 @@ import {
 import { Add as AddIcon, Remove as RemoveIcon, ShoppingCart as CartIcon, Person as PersonIcon, Payment as PaymentIcon } from '@mui/icons-material';
 import api from '../../utils/axios';
 import { io } from 'socket.io-client';
+import FeedbackDialog from './FeedbackDialog';
 
 interface MenuItem {
   id: number;
@@ -93,6 +94,7 @@ const CustomerMenu: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   // Force clear everything
   const forceClearOrders = () => {
@@ -284,8 +286,9 @@ const CustomerMenu: React.FC = () => {
   };
 
   const handleCallWaiter = () => {
+    if (!tableId) return;
     const socket = io('http://localhost:3000');
-    socket.emit('callWaiter', { tableNumber: parseInt(tableId || '0') });
+    socket.emit('callWaiter', { tableNumber: parseInt(tableId), type: 'attention' });
     setSuccess('Waiter has been called');
   };
 
@@ -293,20 +296,20 @@ const CustomerMenu: React.FC = () => {
     if (!tableId) return;
     
     if (paymentMethod === 'cash') {
-      // Send payment request for cash payment
       const socket = io('http://localhost:3000');
-      socket.emit('waiterCalled', parseInt(tableId));
+      socket.emit('callWaiter', { tableNumber: parseInt(tableId), type: 'payment' });
+      socket.emit('paymentCompleted', parseInt(tableId));
       setSuccess('Payment request sent to waiter');
-      // Clear everything immediately
-      forceClearOrders();
+      setPaymentDialogOpen(false);
+      // Do NOT clear orders or show feedback here; wait for paymentCompleted event
     } else {
       // For card payment, mark all orders as paid
       const socket = io('http://localhost:3000');
       console.log('Emitting paymentCompleted for table:', tableId);
       socket.emit('paymentCompleted', parseInt(tableId));
       setSuccess('Payment completed successfully');
-      // Clear everything immediately
-      forceClearOrders();
+      setPaymentDialogOpen(false);
+      // Do NOT clear orders or show feedback here; wait for paymentCompleted event
     }
   };
 
@@ -675,6 +678,12 @@ const CustomerMenu: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <FeedbackDialog
+        open={feedbackDialogOpen}
+        onClose={() => setFeedbackDialogOpen(false)}
+        tableId={tableId || ''}
+      />
     </Box>
   );
 };

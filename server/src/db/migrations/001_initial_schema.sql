@@ -66,4 +66,13 @@ CREATE TABLE IF NOT EXISTS menu_item_ingredients (
     quantity DECIMAL(10,2) NOT NULL,
     unit VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create feedback table
+CREATE TABLE IF NOT EXISTS feedback (
+    id SERIAL PRIMARY KEY,
+    table_id INTEGER REFERENCES tables(id),
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 ); 
